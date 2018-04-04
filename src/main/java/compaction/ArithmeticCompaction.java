@@ -7,7 +7,10 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /*
 Описание работы:
@@ -19,7 +22,7 @@ import java.util.*;
 3) чтобы получить исходную последовательность чисел: вызвать метод decompaction(),
 
 
-Вероятности подсчитываются при создании объекта compaction.ArithmeticCompaction, код выбирается пуьём вызова метода
+Вероятности подсчитываются при создании объекта ArithmeticCompaction, код выбирается пуьём вызова метода
 findOptimal(double left, double right), по умолчанию исходный массив разбивается на части длиной 10 чисел
 */
 
@@ -78,12 +81,11 @@ public class ArithmeticCompaction implements Serializable {
         }
     }
 
-    // Сжатие, возвращаемое значение - искомое дробное число
+    // Сжатие
     public void compaction() {
         defineSegments();
         BigDecimal left = BigDecimal.ZERO;
         BigDecimal right = BigDecimal.ONE;
-        //double newRight, newLeft;
         BigDecimal range;
         int counter = 0;
         for (Integer number : numbers) {
