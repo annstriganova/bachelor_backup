@@ -33,7 +33,8 @@ public class ArithmeticCompaction implements Serializable {
     private Map<Integer, Segment> n_s; // хранит пары цифра = соответвующий отрезок (сегмент)
     private Map<Segment, Integer> s_n; // хранит пары сегмент = цифра
     private ArrayList<Code> codes;
-    private static final int MAX_LIST_SIZE = 10;
+    private static final int BASIC_SUBSAMPLE_SIZE = 10;
+    public static final int SCALE = 80;
 
     public ArithmeticCompaction(ArrayList<Integer> numbers) {
         this.numbers = numbers;
@@ -71,39 +72,49 @@ public class ArithmeticCompaction implements Serializable {
         }
     }
 
-    class Code implements Serializable {
-        BigDecimal code;
-        Integer size;
-
-        Code(BigDecimal code, Integer size) {
-            this.code = code;
-            this.size = size;
-        }
-    }
-
-    // Сжатие
+    // Кодирвоание
     public void compaction() {
         defineSegments();
         BigDecimal left = BigDecimal.ZERO;
         BigDecimal right = BigDecimal.ONE;
         BigDecimal range;
         int counter = 0;
-        for (Integer number : numbers) {
+        int subsamples = BASIC_SUBSAMPLE_SIZE;
+        for (int i = 0; i < numbers.size(); i++) {
+            int tmp = numbers.get(i);
             range = right.subtract(left);
-            right = left.add(range.multiply(n_s.get(number).right));
-            left = left.add(range.multiply(n_s.get(number).left));
+            right = left.add(range.multiply(n_s.get(numbers.get(i)).right));
+            left = left.add(range.multiply(n_s.get(numbers.get(i)).left));
             counter++;
-            if (counter >= MAX_LIST_SIZE) {
-                //System.out.println("Левая граница:  " + left + " " + getBits(left) + "\nПравая граница: " + right + " " + getBits(right));
-                codes.add(new Code(findOptimal(left, right), counter));
+            if (counter >= subsamples) {
+                //System.out.println("Левая граница:  " + left + " " + "\nПравая граница: " + right);
+                Code currentCode = findOptimal(left, right);
+                currentCode.setSize(counter);
+                // если прошли только первые BASIC_SUBSAMPLE_SIZE чисел
+                // или текущий коэффициент сжатия лучше предыдущего
+                // и осталось пройти не менеее BASIC_SUBSAMPLE_SIZE чисел,
+                // то увеличиваем проходим ещё 3 числа
+                if ((CoefficientChecker.isBetterThanPrevious(currentCode) || (i == BASIC_SUBSAMPLE_SIZE - 1))) {
+                    if ((numbers.size() - i) >= BASIC_SUBSAMPLE_SIZE) {
+                        subsamples += 3;
+                        continue;
+                    } else {
+                        codes.add(currentCode);
+                        subsamples = numbers.size() - i - 1;
+                    }
+                } else {
+                    codes.add(CoefficientChecker.getPrevious());
+                    i -= 3;
+                }
                 counter = 0;
                 left = BigDecimal.ZERO;
                 right = BigDecimal.ONE;
             }
         }
+        codes.forEach(k -> System.out.println(k.size));
     }
 
-    // "Расжатие"
+    // Декодирование
     public ArrayList<Integer> decompaction() {
         ArrayList<Integer> samples = new ArrayList<>();
         ArrayList<Segment> segments = new ArrayList<>(n_s.values());
@@ -117,7 +128,7 @@ public class ArithmeticCompaction implements Serializable {
                             && (code.compareTo(segment.right) < 0)) {
                         samples.add(s_n.get(segment));
                         code = (code.subtract(segment.left))
-                                .divide(segment.right.subtract(segment.left), 40, RoundingMode.HALF_UP);
+                                .divide(segment.right.subtract(segment.left), SCALE, RoundingMode.HALF_UP);
                         break;
                     }
                 }
@@ -134,7 +145,7 @@ public class ArithmeticCompaction implements Serializable {
     private void defineSegments() {
         BigDecimal d = BigDecimal.ZERO;
         Segment segment;
-        for (NumberProbabilityMap.Entry e : n_p){
+        for (NumberProbabilityMap.Entry e : n_p) {
             //System.out.println(n + " left: " + d + "\t\tright:" + (d + p_n.get(n)) + "\t\tвер: " + p_n.get(n));
             segment = new Segment(d, d.add(e.probability));
             n_s.put(e.number, segment);
@@ -143,29 +154,36 @@ public class ArithmeticCompaction implements Serializable {
         }
     }
 
-    private static BigDecimal findOptimal(BigDecimal left, BigDecimal right) {
-        if (left.compareTo(right) == 0) {
-            return left;
-        }
-        BigDecimal result = BigDecimal.ZERO, num;
-        int i = 2;
+    public static final int MAX_BITS = 45;
 
-        int brk = (int) (Math.pow(2, 64) - 1);
-        for (int j = i; j <= brk; j++) {
-            num = BigDecimal.ONE.divide(BigDecimal.valueOf(j), 40, RoundingMode.HALF_UP);
-            if (result.compareTo(left) >= 0) {
-                if (result.compareTo(right) < 0) {
-                    //return result==right?left:result;
-                    return result;
-                } else {
+    Code findOptimal(BigDecimal left, BigDecimal right) {
+        BigDecimal result = BigDecimal.ZERO;
+        BigDecimal num;
+        BigDecimal i = BigDecimal.ONE;
+        BigDecimal two = BigDecimal.valueOf(2);
+        int bitCounter = 0;
+        do {
+            i = i.multiply(two);
+            num = BigDecimal.ONE.divide(i, SCALE, RoundingMode.HALF_UP);
+            if (result.compareTo(left) > 0) {
+                if (result.compareTo(right) >= 0) {
                     result = result.subtract(num);
                 }
             } else {
                 result = result.add(num);
             }
-        }
-        return left;
-        //return (left + right) / 2.0;
+            bitCounter++;
+        } while (!belongsToInterval(left, right, result) && (bitCounter <= MAX_BITS));
+        /*System.out.println("Left\t\t\tRight\t\t\tResult\t\t\tIterations");
+        System.out.println(left + "\t\t\t" + right + "\t\t\t" + result + "\t\t\t" + bitCounter);
+        System.out.println('\n');*/
+        if ((bitCounter == MAX_BITS) || (left.compareTo(right) == 0))
+            result = left;
+        return new Code(result, bitCounter);
+    }
+
+    private static boolean belongsToInterval(BigDecimal left, BigDecimal right, BigDecimal result) {
+        return result.compareTo(left) >= 0 && result.compareTo(right) < 0;
     }
 
     // Битовое представление числа
@@ -205,7 +223,7 @@ public class ArithmeticCompaction implements Serializable {
                 duplicates.add(d);
                 copyList.removeAll(duplicates);
                 n_p.put(d, BigDecimal.valueOf(digits.size() - copyList.size())
-                        .divide(BigDecimal.valueOf(digits.size()), 40, RoundingMode.HALF_UP));
+                        .divide(BigDecimal.valueOf(digits.size()), SCALE, RoundingMode.HALF_UP));
 
             }
         }
