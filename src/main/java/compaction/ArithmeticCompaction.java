@@ -33,7 +33,7 @@ public class ArithmeticCompaction implements Serializable {
     private Map<Integer, Segment> n_s; // хранит пары цифра = соответвующий отрезок (сегмент)
     private Map<Segment, Integer> s_n; // хранит пары сегмент = цифра
     private ArrayList<Code> codes;
-    private static final int BASIC_SUBSAMPLE_SIZE = 10;
+    private static final int BASIC_SIZE = 10;
     public static final int SCALE = 80;
 
     public ArithmeticCompaction(ArrayList<Integer> numbers) {
@@ -79,36 +79,55 @@ public class ArithmeticCompaction implements Serializable {
         BigDecimal right = BigDecimal.ONE;
         BigDecimal range;
         int counter = 0;
-        int subsamples = BASIC_SUBSAMPLE_SIZE;
+        int newSize = BASIC_SIZE;
+        Code previousCode = null;
         for (int i = 0; i < numbers.size(); i++) {
             int tmp = numbers.get(i);
             range = right.subtract(left);
             right = left.add(range.multiply(n_s.get(numbers.get(i)).right));
             left = left.add(range.multiply(n_s.get(numbers.get(i)).left));
             counter++;
-            if (counter >= subsamples) {
+            if (counter >= newSize) {
                 //System.out.println("Левая граница:  " + left + " " + "\nПравая граница: " + right);
                 Code currentCode = findOptimal(left, right);
                 currentCode.setSize(counter);
-                // если прошли только первые BASIC_SUBSAMPLE_SIZE чисел
+                // если прошли только первые BASIC_SIZE чисел
                 // или текущий коэффициент сжатия лучше предыдущего
-                // и осталось пройти не менеее BASIC_SUBSAMPLE_SIZE чисел,
+                // и осталось пройти не менеее BASIC_SIZE чисел,
                 // то увеличиваем проходим ещё 3 числа
-                if ((CoefficientChecker.isBetterThanPrevious(currentCode) || (i == BASIC_SUBSAMPLE_SIZE - 1))) {
-                    if ((numbers.size() - i) >= BASIC_SUBSAMPLE_SIZE) {
-                        subsamples += 3;
+                if ((currentCode.isBetterThan(previousCode) || (counter == BASIC_SIZE))) {
+                    /*if ((numbers.size() - i) >= BASIC_SIZE*/
+                    if ((currentCode.bits < MAX_BITS) && ((numbers.size() - i) >= BASIC_SIZE)) {
+                        newSize += 3;
+                        previousCode = currentCode;
                         continue;
                     } else {
                         codes.add(currentCode);
-                        subsamples = numbers.size() - i - 1;
+                        previousCode = null;
+                        counter = 0;
+                        left = BigDecimal.ZERO;
+                        right = BigDecimal.ONE;
+                        newSize = BASIC_SIZE;
+                        if ((numbers.size() - i) < BASIC_SIZE) {
+                            newSize = numbers.size() - i - 1;
+                        }
                     }
                 } else {
-                    codes.add(CoefficientChecker.getPrevious());
+                    if (i == (numbers.size() - 1)) {
+                        codes.add(currentCode);
+                        break;
+                    }
+                    codes.add(previousCode);
+                    previousCode = currentCode;
+                    counter = 0;
+                    left = BigDecimal.ZERO;
+                    right = BigDecimal.ONE;
+                    newSize = BASIC_SIZE;
+                    if ((numbers.size() - i) < BASIC_SIZE) {
+                        newSize = numbers.size() - i - 1;
+                    }
                     i -= 3;
                 }
-                counter = 0;
-                left = BigDecimal.ZERO;
-                right = BigDecimal.ONE;
             }
         }
         codes.forEach(k -> System.out.println(k.size));
@@ -179,35 +198,52 @@ public class ArithmeticCompaction implements Serializable {
         System.out.println('\n');*/
         if ((bitCounter == MAX_BITS) || (left.compareTo(right) == 0))
             result = left;
-        return new Code(result, bitCounter);
+        return new Code(result, /*bitCounter*/calculateBitsOf(left));
+    }
+
+    public Integer calculateBitsOf(BigDecimal left) {
+        BigDecimal result = BigDecimal.ZERO;
+        BigDecimal num;
+        BigDecimal i = BigDecimal.ONE;
+        BigDecimal two = BigDecimal.valueOf(2);
+        int bitCounter = 0;
+        while ((result.compareTo(left) != 0) && (bitCounter <= MAX_BITS)) {
+            i = i.multiply(two);
+            num = BigDecimal.ONE.divide(i, SCALE, RoundingMode.HALF_UP);
+            if (result.compareTo(left) > 0) {
+                result = result.subtract(num);
+            } else {
+                result = result.add(num);
+            }
+            bitCounter++;
+        }
+        return bitCounter;
     }
 
     private static boolean belongsToInterval(BigDecimal left, BigDecimal right, BigDecimal result) {
         return result.compareTo(left) >= 0 && result.compareTo(right) < 0;
     }
 
-    // Битовое представление числа
-    public static Object getBits(Number n) {
-        if (n instanceof Integer) {
-            return Integer.toBinaryString((Integer) n);
-        } else {
-            StringBuilder bits = new StringBuilder("0.");
-            Double num = (Double) n;
-            for (int i = 0; i < 40; i++) {
-                if (num.equals(0.0)) {
-                    break;
-                } else {
-                    num *= 2;
-                    if (num.compareTo(1.0) >= 0) {
-                        bits.append(1);
-                        num -= 1.0;
-                    } else {
-                        bits.append(0);
-                    }
-                }
-            }
-            return bits;
+    // Количесвто бит
+    public int getBits(BigDecimal n) {
+
+        //StringBuilder bits = new StringBuilder("0.");
+        BigDecimal TWO = BigDecimal.valueOf(2);
+        BigDecimal ZERO = new BigDecimal("0.0");
+        int counter = 0;
+        //for (int i = 0; i < 40; i++) {
+        while (!n.equals(ZERO)) {
+            n = n.multiply(TWO);
+            if (n.compareTo(BigDecimal.ONE) >= 0) {
+                //bits.append(1);
+                n = n.subtract(BigDecimal.ONE);
+            } /*else {
+                    bits.append(0);
+                }*/
+            counter++;
         }
+        //}
+        return counter;
     }
 
     /*

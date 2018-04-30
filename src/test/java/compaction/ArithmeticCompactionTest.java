@@ -43,8 +43,15 @@ public class ArithmeticCompactionTest {
 
     @Test
     public void getBitsTest() {
-        System.out.println(ArithmeticCompaction.getBits(0.07524));
-        System.out.println(ArithmeticCompaction.getBits(0.07524197279316319));
-        System.out.println(ArithmeticCompaction.getBits(0.07612717247308276));
+        System.out.println(ac.getBits(BigDecimal.valueOf(0.5)));
+        System.out.println(ac.getBits(BigDecimal.valueOf(0.07524)));
+        /*System.out.println(ac.getBits(BigDecimal.valueOf(0.07524)));
+        System.out.println(ac.getBits(BigDecimal.valueOf(0.07524197279316319)));
+        System.out.println(ac.getBits(BigDecimal.valueOf(0.07612717247308276)));*/
+    }
+
+    @Test
+    public void calculateBitsOfTest(){
+        System.out.println(ac.calculateBitsOf(BigDecimal.valueOf(0.25)));
     }
 }
