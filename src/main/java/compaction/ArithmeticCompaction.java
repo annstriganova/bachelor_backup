@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static compaction.Code.MAX_BITS;
+
 /*
 Описание работы:
 1) создать объект compaction.ArithmeticCompaction - в качестве параметра
@@ -81,6 +83,7 @@ public class ArithmeticCompaction implements Serializable {
         int counter = 0;
         int newSize = BASIC_SIZE;
         Code previousCode = null;
+        boolean skipChecks = false;
         for (int i = 0; i < numbers.size(); i++) {
             int tmp = numbers.get(i);
             range = right.subtract(left);
@@ -88,47 +91,97 @@ public class ArithmeticCompaction implements Serializable {
             left = left.add(range.multiply(n_s.get(numbers.get(i)).left));
             counter++;
             if (counter >= newSize) {
-                //System.out.println("Левая граница:  " + left + " " + "\nПравая граница: " + right);
                 Code currentCode = findOptimal(left, right);
                 currentCode.setSize(counter);
-                // если прошли только первые BASIC_SIZE чисел
-                // или текущий коэффициент сжатия лучше предыдущего
-                // и осталось пройти не менеее BASIC_SIZE чисел,
-                // то увеличиваем проходим ещё 3 числа
-                if ((currentCode.isBetterThan(previousCode) || (counter == BASIC_SIZE))) {
-                    /*if ((numbers.size() - i) >= BASIC_SIZE*/
-                    if ((currentCode.bits < MAX_BITS) && ((numbers.size() - i) >= BASIC_SIZE)) {
+
+                if ((numbers.size() - i) <= BASIC_SIZE) {
+                    if (skipChecks ) {
+                        codes.add(currentCode);
+                        newSize = numbers.size() - i - 1;
+                        left = BigDecimal.ZERO;
+                        right = BigDecimal.ONE;
+                        counter = 0;
+                        previousCode = null;
+                        continue;
+                    }
+                    skipChecks = true;
+                    if (currentCode.bits < MAX_BITS) {
+                        if (currentCode.isBetterThan(previousCode)) {
+                            codes.add(currentCode);
+                            left = BigDecimal.ZERO;
+                            right = BigDecimal.ONE;
+                            counter = 0;
+                            newSize = numbers.size() - i - 1;
+                            previousCode = null;
+                            continue;
+                        } else {
+                            codes.add(previousCode);
+                            i -= 3;
+                            left = BigDecimal.ZERO;
+                            right = BigDecimal.ONE;
+                            counter = 0;
+                            newSize = BASIC_SIZE;
+                            previousCode = null;
+                            continue;
+                        }
+                    } else {
+                        if (previousCode != null) {
+                            codes.add(previousCode);
+                        } else {
+                            codes.add(currentCode);
+                            break;
+                        }
+                        i -= 3;
+                        left = BigDecimal.ZERO;
+                        right = BigDecimal.ONE;
+                        counter = 0;
+                        newSize = BASIC_SIZE;
+                        previousCode = null;
+                        continue;
+                    }
+                } else if (counter == BASIC_SIZE) {
+                    if (currentCode.bits < MAX_BITS) {
                         newSize += 3;
                         previousCode = currentCode;
                         continue;
                     } else {
                         codes.add(currentCode);
-                        previousCode = null;
-                        counter = 0;
                         left = BigDecimal.ZERO;
                         right = BigDecimal.ONE;
+                        counter = 0;
                         newSize = BASIC_SIZE;
-                        if ((numbers.size() - i) < BASIC_SIZE) {
-                            newSize = numbers.size() - i - 1;
-                        }
+                        previousCode = null;
+                        continue;
                     }
                 } else {
-                    if (i == (numbers.size() - 1)) {
-                        codes.add(currentCode);
-                        break;
+                    if (currentCode.bits < MAX_BITS) {
+                        if (currentCode.isBetterThan(previousCode)) {
+                            newSize += 3;
+                            previousCode = currentCode;
+                            continue;
+                        } else {
+                            i -= 3;
+                            codes.add(previousCode);
+                            left = BigDecimal.ZERO;
+                            right = BigDecimal.ONE;
+                            counter = 0;
+                            newSize = BASIC_SIZE;
+                            previousCode = null;
+                            continue;
+                        }
+                    } else {
+                        i -= 3;
+                        codes.add(previousCode);
+                        left = BigDecimal.ZERO;
+                        right = BigDecimal.ONE;
+                        counter = 0;
+                        newSize = BASIC_SIZE;
+                        previousCode = null;
+                        continue;
                     }
-                    codes.add(previousCode);
-                    previousCode = currentCode;
-                    counter = 0;
-                    left = BigDecimal.ZERO;
-                    right = BigDecimal.ONE;
-                    newSize = BASIC_SIZE;
-                    if ((numbers.size() - i) < BASIC_SIZE) {
-                        newSize = numbers.size() - i - 1;
-                    }
-                    i -= 3;
                 }
             }
+
         }
         codes.forEach(k -> System.out.println(k.size));
     }
@@ -173,8 +226,6 @@ public class ArithmeticCompaction implements Serializable {
         }
     }
 
-    public static final int MAX_BITS = 45;
-
     Code findOptimal(BigDecimal left, BigDecimal right) {
         BigDecimal result = BigDecimal.ZERO;
         BigDecimal num;
@@ -196,9 +247,10 @@ public class ArithmeticCompaction implements Serializable {
         /*System.out.println("Left\t\t\tRight\t\t\tResult\t\t\tIterations");
         System.out.println(left + "\t\t\t" + right + "\t\t\t" + result + "\t\t\t" + bitCounter);
         System.out.println('\n');*/
-        if ((bitCounter == MAX_BITS) || (left.compareTo(right) == 0))
-            result = left;
-        return new Code(result, /*bitCounter*/calculateBitsOf(left));
+        if ((bitCounter >= MAX_BITS) || (left.compareTo(right) == 0)) {
+            return new Code(left, bitCounter);
+        }
+        return new Code(result, bitCounter);
     }
 
     public Integer calculateBitsOf(BigDecimal left) {

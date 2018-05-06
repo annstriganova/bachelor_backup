@@ -4,6 +4,8 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 
 class Code implements Serializable {
+
+    public static final int MAX_BITS = 85;
     BigDecimal code;
     Integer size;
     Integer bits;
@@ -19,7 +21,7 @@ class Code implements Serializable {
 
     public boolean isBetterThan(Code previous) {
         if (previous == null)
-            return false;
+            return true;
         double k1 = (double) previous.bits / Integer.SIZE * previous.size;
         double k2 = (double) this.bits / Integer.SIZE * this.size;
         // TODO: there could be problems, check it later
