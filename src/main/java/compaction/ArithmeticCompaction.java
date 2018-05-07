@@ -95,7 +95,7 @@ public class ArithmeticCompaction implements Serializable {
                 currentCode.setSize(counter);
 
                 if ((numbers.size() - i) <= BASIC_SIZE) {
-                    if (skipChecks ) {
+                    if (skipChecks) {
                         codes.add(currentCode);
                         newSize = numbers.size() - i - 1;
                         left = BigDecimal.ZERO;
@@ -218,7 +218,6 @@ public class ArithmeticCompaction implements Serializable {
         BigDecimal d = BigDecimal.ZERO;
         Segment segment;
         for (NumberProbabilityMap.Entry e : n_p) {
-            //System.out.println(n + " left: " + d + "\t\tright:" + (d + p_n.get(n)) + "\t\tвер: " + p_n.get(n));
             segment = new Segment(d, d.add(e.probability));
             n_s.put(e.number, segment);
             s_n.put(segment, e.number);
@@ -244,25 +243,33 @@ public class ArithmeticCompaction implements Serializable {
             }
             bitCounter++;
         } while (!belongsToInterval(left, right, result) && (bitCounter <= MAX_BITS));
-        /*System.out.println("Left\t\t\tRight\t\t\tResult\t\t\tIterations");
-        System.out.println(left + "\t\t\t" + right + "\t\t\t" + result + "\t\t\t" + bitCounter);
-        System.out.println('\n');*/
+
         if ((bitCounter >= MAX_BITS) || (left.compareTo(right) == 0)) {
             return new Code(left, bitCounter);
         }
         return new Code(result, bitCounter);
+
     }
 
-    public Integer calculateBitsOf(BigDecimal left) {
+   /* Code findOptimal(BigDecimal left, BigDecimal right) {
+        BigDecimal diff = right.subtract(left);
+        Integer zeros = diff.scale() - diff.precision() + 1;
+        BigDecimal multiplier = BigDecimal.TEN.pow(zeros);
+        BigDecimal result = right.multiply(multiplier).setScale(0, RoundingMode.DOWN).divide(multiplier);
+        return new Code(result, calculateBitsOf(result));
+
+    }*/
+
+    public Integer calculateBitsOf(BigDecimal value) {
         BigDecimal result = BigDecimal.ZERO;
         BigDecimal num;
         BigDecimal i = BigDecimal.ONE;
         BigDecimal two = BigDecimal.valueOf(2);
         int bitCounter = 0;
-        while ((result.compareTo(left) != 0) && (bitCounter <= MAX_BITS)) {
+        while ((result.compareTo(value) != 0) && (bitCounter <= MAX_BITS)) {
             i = i.multiply(two);
             num = BigDecimal.ONE.divide(i, SCALE, RoundingMode.HALF_UP);
-            if (result.compareTo(left) > 0) {
+            if (result.compareTo(value) > 0) {
                 result = result.subtract(num);
             } else {
                 result = result.add(num);
