@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 
 class Code implements Serializable {
 
-    public static final int MAX_BITS = 85;
+    public static final int MAX_BITS = 45;
     BigDecimal code;
     Integer size;
     Integer bits;

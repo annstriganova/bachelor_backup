@@ -84,12 +84,13 @@ public class ArithmeticCompaction implements Serializable {
         int newSize = BASIC_SIZE;
         Code previousCode = null;
         boolean skipChecks = false;
+        int ctr= 0;
         for (int i = 0; i < numbers.size(); i++) {
-            int tmp = numbers.get(i);
             range = right.subtract(left);
             right = left.add(range.multiply(n_s.get(numbers.get(i)).right));
             left = left.add(range.multiply(n_s.get(numbers.get(i)).left));
             counter++;
+            System.out.println(++ctr);
             if (counter >= newSize) {
                 Code currentCode = findOptimal(left, right);
                 currentCode.setSize(counter);

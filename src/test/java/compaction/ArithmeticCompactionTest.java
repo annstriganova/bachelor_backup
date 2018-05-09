@@ -17,7 +17,7 @@ public class ArithmeticCompactionTest {
     @Before
     public void setUpTest() throws Exception {
         ac = new ArithmeticCompaction("C:\\IdeaProjects\\bachelor_paper\\" +
-                "src\\main\\resources\\compaction\\normal_30");
+                "src\\main\\resources\\compaction\\normal\\100000_500_20");
     }
 
     @Test
