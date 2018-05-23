@@ -17,12 +17,21 @@ public class ArithmeticCompactionTest {
     @Before
     public void setUpTest() throws Exception {
         ac = new ArithmeticCompaction("C:\\IdeaProjects\\bachelor_paper\\" +
-                "src\\main\\resources\\compaction\\normal\\100000_500_20");
+                "src\\main\\resources\\compaction\\normal\\1000_1000_10");
     }
 
     @Test
     public void compactionTest() {
         ac.compaction();
+        checkList = ac.decompaction();
+        assertEquals(ac.numbers, checkList);
+        assertEquals(checkList.size(), ac.numbers.size());
+        assertTrue(checkList.containsAll(ac.numbers));
+    }
+
+    @Test
+    public void compactionDefaultTest() {
+        ac.compactionDefault();
         checkList = ac.decompaction();
         assertEquals(ac.numbers, checkList);
         assertEquals(checkList.size(), ac.numbers.size());
@@ -51,6 +60,6 @@ public class ArithmeticCompactionTest {
 
     @Test
     public void calculateBitsOfTest(){
-        System.out.println(ac.calculateBitsOf(BigDecimal.valueOf(0.25)));
+        //System.out.println(ac.calculateBitsOf(BigDecimal.valueOf(0.25)));
     }
 }

@@ -1,9 +1,9 @@
 package compaction;
 
-import java.io.IOException;
-import java.io.Serializable;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -30,13 +30,13 @@ findOptimal(double left, double right), по умолчанию исходный
 
 public class ArithmeticCompaction implements Serializable {
 
-    public ArrayList<Integer> numbers; // исходная выборка
-    private NumberProbabilityMap n_p; // хранит пары число = вероятность
-    private Map<Integer, Segment> n_s; // хранит пары цифра = соответвующий отрезок (сегмент)
-    private Map<Segment, Integer> s_n; // хранит пары сегмент = цифра
+    transient public ArrayList<Integer> numbers; // исходная выборка
+    transient private NumberProbabilityMap n_p; // хранит пары число = вероятность
+    transient private Map<Integer, Segment> n_s; // хранит пары цифра = соответвующий отрезок (сегмент)
+    transient private Map<Segment, Integer> s_n; // хранит пары сегмент = цифра
     private ArrayList<Code> codes;
-    private static final int BASIC_SIZE = 10;
-    public static final int SCALE = 80;
+    transient private static final int BASIC_SIZE = 10;
+    transient public static final int SCALE = 55;
 
     public ArithmeticCompaction(ArrayList<Integer> numbers) {
         this.numbers = numbers;
@@ -74,7 +74,7 @@ public class ArithmeticCompaction implements Serializable {
         }
     }
 
-    // Кодирвоание
+    // Кодирвоание (адаптивный алгоритм)
     public void compaction() {
         defineSegments();
         BigDecimal left = BigDecimal.ZERO;
@@ -84,13 +84,11 @@ public class ArithmeticCompaction implements Serializable {
         int newSize = BASIC_SIZE;
         Code previousCode = null;
         boolean skipChecks = false;
-        int ctr= 0;
         for (int i = 0; i < numbers.size(); i++) {
             range = right.subtract(left);
             right = left.add(range.multiply(n_s.get(numbers.get(i)).right));
             left = left.add(range.multiply(n_s.get(numbers.get(i)).left));
             counter++;
-            System.out.println(++ctr);
             if (counter >= newSize) {
                 Code currentCode = findOptimal(left, right);
                 currentCode.setSize(counter);
@@ -184,7 +182,30 @@ public class ArithmeticCompaction implements Serializable {
             }
 
         }
-        codes.forEach(k -> System.out.println(k.size));
+        //codes.forEach(k -> System.out.println(k.size));
+    }
+
+    // Кодирвоание (без улучшений)
+    public void compactionDefault() {
+        defineSegments();
+        BigDecimal left = BigDecimal.ZERO;
+        BigDecimal right = BigDecimal.ONE;
+        BigDecimal range;
+        int counter = 0;
+        for (Integer number : numbers) {
+            range = right.subtract(left);
+            right = left.add(range.multiply(n_s.get(number).right));
+            left = left.add(range.multiply(n_s.get(number).left));
+            counter++;
+            if (counter >= BASIC_SIZE) {
+                Code currentCode = findOptimal(left, right);
+                currentCode.setSize(counter);
+                codes.add(currentCode);
+                left = BigDecimal.ZERO;
+                right = BigDecimal.ONE;
+                counter = 0;
+            }
+        }
     }
 
     // Декодирование
@@ -246,9 +267,9 @@ public class ArithmeticCompaction implements Serializable {
         } while (!belongsToInterval(left, right, result) && (bitCounter <= MAX_BITS));
 
         if ((bitCounter >= MAX_BITS) || (left.compareTo(right) == 0)) {
-            return new Code(left, bitCounter);
+            return new Code(left.stripTrailingZeros(), bitCounter);
         }
-        return new Code(result, bitCounter);
+        return new Code(result.stripTrailingZeros(), bitCounter);
 
     }
 
@@ -332,6 +353,26 @@ public class ArithmeticCompaction implements Serializable {
         return numbers;
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+
+        FileOutputStream fos = new FileOutputStream("C:\\IdeaProjects\\bachelor_paper\\" +
+                "src\\main\\resources\\serialized\\1000_1000_10.bin");
+        ObjectOutputStream oos = new ObjectOutputStream(fos);
+        ArithmeticCompaction ac = new ArithmeticCompaction("C:\\IdeaProjects\\bachelor_paper\\" +
+                "src\\main\\resources\\compaction\\normal\\1000_1000_10");
+        ac.compaction();
+        ByteArrayOutputStream result = new ByteArrayOutputStream();
+        for (Code c : ac.codes) {
+            byte[] unscaledValue = c.code.unscaledValue().toByteArray();
+            byte[] scale = ByteBuffer.allocate(4).putInt(c.code.scale()).array(); // количество цифр после точки
+            byte[] cnt = ByteBuffer.allocate(4).putInt(unscaledValue.length + scale.length).array();
+            result.write(unscaledValue);
+            result.write(scale);
+            result.write(cnt);
+        }
+        System.out.println(result.toByteArray().length);
+        oos.writeObject(result.toByteArray());
+        oos.flush();
+        oos.close();
     }
 }

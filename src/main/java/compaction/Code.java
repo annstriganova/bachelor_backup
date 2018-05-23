@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 
 class Code implements Serializable {
 
-    public static final int MAX_BITS = 45;
+    transient static final int MAX_BITS = 65;
     BigDecimal code;
     Integer size;
     Integer bits;
@@ -15,11 +15,11 @@ class Code implements Serializable {
         this.bits = bits;
     }
 
-    public void setSize(int size) {
+    void setSize(int size) {
         this.size = size;
     }
 
-    public boolean isBetterThan(Code previous) {
+    boolean isBetterThan(Code previous) {
         if (previous == null)
             return true;
         double k1 = (double) previous.bits / Integer.SIZE * previous.size;

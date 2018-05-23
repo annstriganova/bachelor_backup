@@ -83,7 +83,7 @@ public class StatisticsCalculator {
         return sum;
     }
 
-    public static void main(String[] args) throws IOException {
+   /* public static void main(String[] args) throws IOException {
         ArrayList<Double> general_server = readFile("src\\main\\resources\\general_server");
         ArrayList<Double> server_1 = readFile("src\\main\\resources\\server 1");
         ArrayList<Double> server_2 = readFile("src\\main\\resources\\server 2");
@@ -105,10 +105,10 @@ public class StatisticsCalculator {
         System.out.println("Дисперсия, распр.: " + StatisticsCalculator.sum(null, list2) / 2.0 + '\n');
 
         System.out.println("Квантиль: " + StatisticsCalculator.quantile("src\\main\\resources\\general_server", 0.8));
-       /* ArrayList<String> list = new ArrayList<>();
+       *//* ArrayList<String> list = new ArrayList<>();
         for (int i = 0; i < 23; i++) {
             list.add(String.valueOf(((int) ((49.0 + Math.random() * 2) * 100)) / 100.0));
         }
-        Files.write(Paths.get("src\\\\main\\\\resources\\\\general_server"), list, StandardOpenOption.TRUNCATE_EXISTING);*/
-    }
+        Files.write(Paths.get("src\\\\main\\\\resources\\\\general_server"), list, StandardOpenOption.TRUNCATE_EXISTING);*//*
+    }*/
 }

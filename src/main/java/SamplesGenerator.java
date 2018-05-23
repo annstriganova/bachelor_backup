@@ -34,7 +34,7 @@ public class SamplesGenerator {
         Files.write(Paths.get("src\\main\\resources\\server 2"), less, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    public static void main(String[] args) throws IOException {
+   /* public static void main(String[] args) throws IOException {
         writeToFile(generateSamples(26));
-    }
+    }*/
 }
