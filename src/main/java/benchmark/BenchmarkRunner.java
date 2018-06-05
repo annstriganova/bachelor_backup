@@ -12,16 +12,16 @@ import java.util.concurrent.TimeUnit;
 
 public class BenchmarkRunner {
 
-    private static String file = "1000_1000_20";
-
-    @State(Scope.Thread)
+    @State(Scope.Benchmark)
     public static class CompactionState {
-        public ArithmeticCompaction ac;
+        ArithmeticCompaction ac;
+        @Param({"10", "20", "30", "40", "50", "60", "70", "80", "90", "100", "150"})
+        public String fileName;
 
         @Setup(Level.Trial)
         public void doSetup() throws IOException {
             ac = new ArithmeticCompaction("C:\\IdeaProjects\\bachelor_paper\\" +
-                    "src\\main\\resources\\compaction\\normal\\" + file);
+                    "src\\main\\resources\\compaction\\normal\\100000_1000_" + fileName);
         }
 
         public CompactionState() {
@@ -30,26 +30,42 @@ public class BenchmarkRunner {
 
     @Benchmark
     @BenchmarkMode(Mode.AverageTime) // Среднее время выполнения операции
+    @Fork(value = 4) // Количество JVM
+    @Warmup(iterations = 5) // Количество "холостых" вызовов
+    @Measurement(iterations = 6) // Количество для измерения
     @OutputTimeUnit(TimeUnit.MICROSECONDS)
-    public ArithmeticCompaction compactionTest(CompactionState cs) {
-        cs.ac.compaction();
+    public ArithmeticCompaction compactionClassicTest(CompactionState cs) {
+        cs.ac.compactionClassic();
         return cs.ac;
     }
 
     @Benchmark
     @BenchmarkMode(Mode.AverageTime) // Среднее время выполнения операции
+    @Fork(value = 4) // Количество JVM
+    @Warmup(iterations = 5) // Количество "холостых" вызовов
+    @Measurement(iterations = 6) // Количество для измерения
     @OutputTimeUnit(TimeUnit.MICROSECONDS)
-    public ArithmeticCompaction compactionDefaultTest(CompactionState cs) {
-        cs.ac.compactionDefault();
+    public ArithmeticCompaction compactionOptimalTest(CompactionState cs) {
+        cs.ac.compactionOptimal();
+        return cs.ac;
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime) // Среднее время выполнения операции
+    @Fork(value = 4) // Количество JVM
+    @Warmup(iterations = 5) // Количество "холостых" вызовов
+    @Measurement(iterations = 6) // Количество для измерения
+    @OutputTimeUnit(TimeUnit.MICROSECONDS)
+    public ArithmeticCompaction compactionAdaptiveTest(CompactionState cs) {
+        cs.ac.compactionAdaptive();
         return cs.ac;
     }
 
     public static void main(String[] args) throws Exception {
-        //org.openjdk.jmh.Main.main(args);
         Options opt = new OptionsBuilder()
                 .include(BenchmarkRunner.class.getSimpleName())
                 .resultFormat(ResultFormatType.TEXT)
-                .result("C:\\IdeaProjects\\bachelor_paper\\src\\main\\java\\benchmark\\results\\" + file + ".txt")
+                .result("C:\\IdeaProjects\\bachelor_paper\\src\\main\\java\\benchmark\\results\\100000_1000.txt")
                 .build();
 
         new Runner(opt).run();
